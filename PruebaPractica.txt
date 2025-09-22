@@ -1,0 +1,184 @@
+-- ============================================================
+-- CREACIÓN DE BASE Y ESQUEMAS
+-- ============================================================
+CREATE DATABASE BD_DISTRIBUIDA;
+GO
+USE BD_DISTRIBUIDA;
+GO
+
+-- Esquemas que simulan las sedes
+CREATE SCHEMA HUACHI;
+CREATE SCHEMA INGAHURCO;
+CREATE SCHEMA QUEROCHACA;
+GO
+
+-- ============================================================
+-- TABLAS DE APOYO (COMUNES)
+-- ============================================================
+CREATE TABLE CAMPUS (
+    ID_CAM VARCHAR(10) PRIMARY KEY,
+    NOMBRE_CAMPUS VARCHAR(50) NOT NULL,
+    UBICACION VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE CARRERAS (
+    ID_CAR VARCHAR(10) PRIMARY KEY,
+    NOMBRE_CARRERA VARCHAR(50) NOT NULL,
+    CUPOS INT NOT NULL,
+    ID_CAMPUS_PER VARCHAR(10) REFERENCES CAMPUS(ID_CAM)
+);
+GO
+
+-- Insertar campus (uno por sede)
+INSERT INTO CAMPUS VALUES ('CAMP1','CAMPUS INGAHURCO','INGAHURCO');
+INSERT INTO CAMPUS VALUES ('CAMP2','CAMPUS HUACHI','HUACHI');
+INSERT INTO CAMPUS VALUES ('CAMP3','CAMPUS QUEROCHACA','QUEROCHACA');
+
+-- Insertar carreras HUACHI
+INSERT INTO CARRERAS VALUES ('CAR1','TECNOLOGIAS DE LA INFORMACION',20,'CAMP2');
+INSERT INTO CARRERAS VALUES ('CAR2','TELECOMUNICACIONES',15,'CAMP2');
+
+-- Insertar carreras INGAHURCO
+INSERT INTO CARRERAS VALUES ('CAR3','MEDICINA',25,'CAMP1');
+INSERT INTO CARRERAS VALUES ('CAR4','ENFERMERIA',30,'CAMP1');
+
+-- Insertar carreras QUEROCHACA
+INSERT INTO CARRERAS VALUES ('CAR5','AGRONOMIA',16,'CAMP3');
+INSERT INTO CARRERAS VALUES ('CAR6','VETERINARIA',22,'CAMP3');
+GO
+
+-- ============================================================
+-- TABLAS FRAGMENTADAS POR SEDE (HORIZONTAL)
+-- ============================================================
+-- Cada sede tiene dos fragmentos verticales: V1 (contacto) y V2 (académico)
+
+-- ========== HUACHI ==========
+CREATE TABLE HUACHI.Alumnos_V1 (
+    AlumnoID INT PRIMARY KEY,
+    Cedula VARCHAR(10),
+    Nombres VARCHAR(50),
+    Apellidos VARCHAR(50),
+    Email VARCHAR(50),
+    Telefono VARCHAR(15),
+    Sede VARCHAR(20) DEFAULT 'HUACHI'
+);
+
+CREATE TABLE HUACHI.Alumnos_V2 (
+    AlumnoID INT PRIMARY KEY,
+    Carrera VARCHAR(10) REFERENCES CARRERAS(ID_CAR),
+    Ciudad VARCHAR(30),
+    FechaIngreso DATE
+);
+
+-- ========== INGAHURCO ==========
+CREATE TABLE INGAHURCO.Alumnos_V1 (
+    AlumnoID INT PRIMARY KEY,
+    Cedula VARCHAR(10),
+    Nombres VARCHAR(50),
+    Apellidos VARCHAR(50),
+    Email VARCHAR(50),
+    Telefono VARCHAR(15),
+    Sede VARCHAR(20) DEFAULT 'INGAHURCO'
+);
+
+CREATE TABLE INGAHURCO.Alumnos_V2 (
+    AlumnoID INT PRIMARY KEY,
+    Carrera VARCHAR(10) REFERENCES CARRERAS(ID_CAR),
+    Ciudad VARCHAR(30),
+    FechaIngreso DATE
+);
+
+-- ========== QUEROCHACA ==========
+CREATE TABLE QUEROCHACA.Alumnos_V1 (
+    AlumnoID INT PRIMARY KEY,
+    Cedula VARCHAR(10),
+    Nombres VARCHAR(50),
+    Apellidos VARCHAR(50),
+    Email VARCHAR(50),
+    Telefono VARCHAR(15),
+    Sede VARCHAR(20) DEFAULT 'QUEROCHACA'
+);
+
+CREATE TABLE QUEROCHACA.Alumnos_V2 (
+    AlumnoID INT PRIMARY KEY,
+    Carrera VARCHAR(10) REFERENCES CARRERAS(ID_CAR),
+    Ciudad VARCHAR(30),
+    FechaIngreso DATE
+);
+GO
+
+-- ============================================================
+-- INSERCIÓN DE DATOS (UNO A UNO)
+-- ============================================================
+
+-- HUACHI
+INSERT INTO HUACHI.Alumnos_V1 VALUES (1,'0101010101','Carlos','Perez','carlos@ej.com','0991111111','HUACHI');
+INSERT INTO HUACHI.Alumnos_V2 VALUES (1,'CAR1','Ambato','2023-01-10');
+
+INSERT INTO HUACHI.Alumnos_V1 VALUES (2,'0102020202','Maria','Lopez','maria@ej.com','0992222222','HUACHI');
+INSERT INTO HUACHI.Alumnos_V2 VALUES (2,'CAR2','Ambato','2023-02-15');
+
+-- INGAHURCO
+INSERT INTO INGAHURCO.Alumnos_V1 VALUES (3,'0203030303','Luis','Gomez','luis@ej.com','0993333333','INGAHURCO');
+INSERT INTO INGAHURCO.Alumnos_V2 VALUES (3,'CAR3','Quito','2023-03-05');
+
+INSERT INTO INGAHURCO.Alumnos_V1 VALUES (4,'0204040404','Ana','Martinez','ana@ej.com','0994444444','INGAHURCO');
+INSERT INTO INGAHURCO.Alumnos_V2 VALUES (4,'CAR4','Latacunga','2023-03-20');
+
+-- QUEROCHACA
+INSERT INTO QUEROCHACA.Alumnos_V1 VALUES (5,'0305050505','Diego','Ruiz','diego@ej.com','0995555555','QUEROCHACA');
+INSERT INTO QUEROCHACA.Alumnos_V2 VALUES (5,'CAR5','Pelileo','2023-04-12');
+
+INSERT INTO QUEROCHACA.Alumnos_V1 VALUES (6,'0306060606','Paola','Torres','paola@ej.com','0996666666','QUEROCHACA');
+INSERT INTO QUEROCHACA.Alumnos_V2 VALUES (6,'CAR6','Cevallos','2023-05-01');
+GO
+
+-- ============================================================
+-- VISTAS LOCALES (RECONSTRUCCIÓN POR SEDE)
+-- ============================================================
+CREATE VIEW HUACHI.vw_Alumnos_Local AS
+SELECT V1.AlumnoID, Cedula, Nombres, Apellidos, Email, Telefono, V1.Sede,
+       V2.Carrera, V2.Ciudad, V2.FechaIngreso
+FROM HUACHI.Alumnos_V1 V1
+JOIN HUACHI.Alumnos_V2 V2 ON V1.AlumnoID = V2.AlumnoID;
+
+CREATE VIEW INGAHURCO.vw_Alumnos_Local AS
+SELECT V1.AlumnoID, Cedula, Nombres, Apellidos, Email, Telefono, V1.Sede,
+       V2.Carrera, V2.Ciudad, V2.FechaIngreso
+FROM INGAHURCO.Alumnos_V1 V1
+JOIN INGAHURCO.Alumnos_V2 V2 ON V1.AlumnoID = V2.AlumnoID;
+
+CREATE VIEW QUEROCHACA.vw_Alumnos_Local AS
+SELECT V1.AlumnoID, Cedula, Nombres, Apellidos, Email, Telefono, V1.Sede,
+       V2.Carrera, V2.Ciudad, V2.FechaIngreso
+FROM QUEROCHACA.Alumnos_V1 V1
+JOIN QUEROCHACA.Alumnos_V2 V2 ON V1.AlumnoID = V2.AlumnoID;
+GO
+
+-- ============================================================
+-- VISTA GLOBAL (RECONSTRUCCIÓN COMPLETA)
+-- ============================================================
+CREATE VIEW dbo.Alumnos AS
+SELECT * FROM HUACHI.vw_Alumnos_Local
+UNION ALL
+SELECT * FROM INGAHURCO.vw_Alumnos_Local
+UNION ALL
+SELECT * FROM QUEROCHACA.vw_Alumnos_Local;
+GO
+
+-- ============================================================
+-- CONSULTAS DE PRUEBA (EVIDENCIAS)
+-- ============================================================
+-- Conteo total de alumnos
+SELECT COUNT(*) AS TotalAlumnos FROM dbo.Alumnos;
+
+-- Alumnos por sede
+SELECT Sede, COUNT(*) AS Cantidad FROM dbo.Alumnos GROUP BY Sede;
+
+-- Alumnos por carrera
+SELECT Carrera, COUNT(*) AS Cantidad FROM dbo.Alumnos GROUP BY Carrera;
+
+-- Consulta global (transparente)
+SELECT AlumnoID, Nombres, Apellidos, Carrera, Ciudad
+FROM dbo.Alumnos
+WHERE Ciudad = 'Ambato';
